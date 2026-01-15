@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { UserContext } from '../types/user-context.type';
+import { UserContext } from '@fleetops/shared';
 
 export const CurrentUser = createParamDecorator<void, UserContext>(
   (_data: void, ctx: ExecutionContext): UserContext => {

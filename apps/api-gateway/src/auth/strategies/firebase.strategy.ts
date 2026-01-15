@@ -3,8 +3,8 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-custom';
 import { AuthService } from '../auth.service';
 import { Request } from 'express';
-import { UserContext } from '../../common/types/user-context.type';
 import type { DecodedIdToken } from 'firebase-admin/auth';
+import { UserContext } from '@fleetops/shared';
 
 @Injectable()
 export class FirebaseAuthStrategy extends PassportStrategy(
