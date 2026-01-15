@@ -2,467 +2,193 @@
 
 FleetOps is a workforce and operations management platform designed for companies that manage distributed teams and physical operations such as logistics, field service, construction, maintenance, or equipment rental.
 
-The platform focuses on task planning, execution tracking, reporting, and compliance. IoT integration is optional and serves only as an enrichment layer, not as the core of the system. This makes the project realistic: the system provides value even without IoT, while still being able to consume automated signals when available.
-
-The project is intentionally designed as a small but production-style system that demonstrates architectural decision-making, data modeling depth, and pragmatic use of modern backend technologies.
+The platform focuses on task planning, execution tracking, reporting, and compliance. IoT integration is optional and serves only as an enrichment layer, not as the core of the system.
 
 ---
 
-## Key goals of the project
+## Key goals of app as a pet project
 
-* Demonstrate clean microservice boundaries
-* Show real-world usage of multiple databases
-* Apply event-driven and streaming patterns
-* Use cloud-native concepts (AWS Lambda, S3)
-* Avoid artificial complexity while still covering advanced topics
-
----
-
-## Core use cases
-
-FleetOps helps organizations answer questions such as:
-
-* What tasks are currently assigned to teams or users?
-* Are tasks being completed on time and according to workflow?
-* Where do delays or abnormal patterns occur?
-* How can historical activity be audited for compliance or reporting?
-
-The system combines:
-
-* human-driven workflows (task creation, updates, reports)
-* asynchronous processing (events, notifications, analytics)
-* optional automated signals (IoT or third-party integrations)
+- Demonstrate clean microservice boundaries
+- **Strict B2B multi-tenancy**: One user belongs to exactly one organization
+- Show real-world usage of multiple databases
+- Apply event-driven and streaming patterns (Kafka & RabbitMQ)
+- Use cloud-native concepts (AWS Lambda, S3)
+- Provide pragmatic, maintainable architecture
 
 ---
 
 ## Users and roles
 
-FleetOps is a multi-tenant system where all data is scoped to an organization.
+FleetOps uses a strict organization-level scoping. A user account is tied to a single organization.
 
-### Admin users
+### OWNER
+- High-level control: Can manage organization settings and billing.
+- User management: Can create **ADMIN** and **USER** accounts for the staff.
+- Full access to all organizational data and analytics.
 
-Admins are responsible for configuration and oversight.
+### ADMIN
+- Operational management: Define teams, task templates, and workflows.
+- Staff management: Create **USER** accounts and assign them to teams.
+- Access to dashboards and reporting.
 
-They can:
-
-* create and manage organizations
-* define teams and assign users
-* create task templates and workflows
-* configure alerting and integrations
-* access aggregated analytics and exports
-
-### Regular users
-
-Regular users focus on execution.
-
-They can:
-
-* view assigned tasks
-* update task statuses
-* upload reports, photos, and documents
-* receive alerts and notifications
-
-### Why this separation exists
-
-The distinction between Admin and User roles reflects real operational boundaries:
-
-* configuration vs execution
-* system-wide impact vs scoped actions
-* different authorization and query patterns
-
-This separation also enables clearer data access rules and more realistic authorization logic across services.
+### USER (Field Worker / Technician)
+- Execution: View assigned tasks and update statuses.
+- Evidence: Upload photos, documents, and reports.
+- Notifications: Receive alerts regarding tasks and deadlines.
 
 ---
 
 ## Typical user flow
 
-1. An admin registers an organization
-2. Teams and users are created
-3. Task templates and workflows are defined
-4. Tasks are assigned to teams or individuals
-5. Users execute tasks and update statuses
-6. Users upload attachments as evidence
-7. Optional external or IoT signals enrich task data
-8. Admins review dashboards, analytics, and reports
+1. **Owner Registration**: A user registers a new organization. The system creates the `Organization` record and the first `User` with the `OWNER` role.
+2. **Onboarding**: The Owner (or Admin) creates accounts for employees by email. The system uses Firebase Admin SDK to provision accounts.
+3. **Setup**: Admins define teams and task templates.
+4. **Execution**: Tasks are created and assigned. Users update task progress in the field.
+5. **Enrichment**: Optional IoT or external signals update task data via the Telemetry service.
+6. **Reporting**: Admins/Owners review aggregated stats provided by the Analytics service.
 
 ---
 
 ## Architecture overview
 
-FleetOps is implemented as a NestJS monorepo with several focused services and one Go-based service for high-throughput ingestion.
+NestJS monorepo with focused services + one Go-based service for high-throughput ingestion.  
+Services are split by data ownership and scalability requirements.
 
-Services are split only where there is a clear boundary based on:
+### Services
 
-* data ownership
-* scalability requirements
-* responsibility isolation
+#### API Gateway (NestJS)
+- Single entry point for clients (REST).
+- **Context Resolution**: Resolves `userId`, `orgId`, and `role` via gRPC from the User Service.
+- Request validation, rate limiting, and S3 pre-signed URL generation.
 
-The goal is clarity and maintainability, not microservices for their own sake.
+#### User & Organization Service (PostgreSQL + Prisma)
+- Source of truth for identity and company structure.
+- Handles Organizations, Users, and Teams.
+- **Provisioning**: Wraps Firebase Admin SDK to create/invite staff accounts.
+- Provides gRPC interface for fast context lookups.
 
----
+#### Task & Workflow Service (MySQL + TypeORM)
+- Manages tasks, templates, and state machine transitions.
+- All data is strictly filtered by `organization_id`.
+- Publishes task lifecycle events to Kafka and notification triggers to RabbitMQ.
 
-## Services
+#### Notification Service (NestJS + PostgreSQL)
+- **Role**: Event-driven worker for delivering Push (FCM) and Email (SES).
+- Consumes from RabbitMQ (instant business events) and Kafka (analytical alerts).
+- Manages user notification preferences and "In-app Inbox" history.
 
-### API Gateway (NestJS)
+#### Analytics Service (NestJS + Kafka + PostgreSQL)
+- Consumes Kafka events to build aggregated read models.
+- **Statistics**: Owns calculations like "tasks completed per day" or "average completion time."
+- Uses time-based partitioning for historical data.
 
-The API Gateway is the single entry point for all clients.
-
-Responsibilities:
-
-* authentication middleware
-* request validation
-* rate limiting
-* routing to internal services
-* REST API exposure
-
-No business logic is implemented in the gateway.
-
----
-
-### Auth Service (NestJS + Firebase)
-
-The Auth Service handles authentication and authorization.
-
-Responsibilities:
-
-* Firebase Authentication integration
-* token validation
-* role and organization resolution
-* internal gRPC interface for auth checks
-
-Auth is kept separate because it is security-critical, stateless, and shared across all other services.
-
----
-
-### User & Organization Service (PostgreSQL + Prisma)
-
-This service manages business-level identity and structure.
-
-Responsibilities:
-
-* user profiles
-* organizations
-* teams
-* role assignments
-* access rules
-
-PostgreSQL is used for strong consistency and relational integrity. Prisma provides type safety and controlled schema evolution.
-
-This service demonstrates deeper database work, including:
-
-* normalized core schemas
-* denormalized read models (organization statistics)
-* indexing for authorization-heavy queries
-* read replicas for analytics-heavy endpoints
-
----
-
-### Task & Workflow Service (MySQL + TypeORM)
-
-This service owns operational data and task lifecycle logic.
-
-Responsibilities:
-
-* tasks and task templates
-* workflow states
-* execution history
-* audit logs
-
-MySQL is used to contrast with PostgreSQL and to demonstrate working with multiple relational databases, including different replication and locking characteristics.
-
----
-
-### Analytics Service (NestJS + Kafka + PostgreSQL)
-
-The Analytics Service builds aggregated and historical views of system activity.
-
-Responsibilities:
-
-* consume task lifecycle events
-* process user activity events
-* enrich data with optional external signals
-
-This service uses:
-
-* Kafka for event streaming
-* time-based partitions
-* denormalized aggregates
-* materialized views
-
-It is isolated to protect transactional services from heavy read and aggregation workloads.
-
----
-
-### Telemetry Integration Service (Go)
-
-This optional service integrates external data sources such as IoT or third-party systems.
-
-Responsibilities:
-
-* receive external signals
-* validate and normalize incoming data
-* publish enrichment events to Kafka
-
-The service does not define core system behavior and exists purely as an enrichment layer.
-
-Go is used for efficient IO handling and low-latency processing.
+#### Telemetry Integration Service (Go)
+- High-throughput ingestion of IoT / third-party signals.
+- Normalizes and publishes enrichment events to Kafka.
 
 ---
 
 ## Messaging and streaming
 
-Kafka is used for:
-
-* task lifecycle events
-* analytics pipelines
-* enrichment and reprocessing
-
-RabbitMQ is used for:
-
-* notifications
-* retries and delayed jobs
-* lightweight business events
-
-This separation reflects common real-world usage patterns.
-
----
-
-## AWS integration
-
-### Amazon S3
-
-S3 is used for object storage:
-
-* task attachments (photos, documents)
-* generated reports
-* audit and compliance exports
-
-Files are uploaded using pre-signed URLs generated by the API Gateway.
-
----
-
-### AWS Lambda
-
-AWS Lambda is used for isolated, event-driven workloads:
-
-* generating PDF reports
-* processing uploaded images
-* scheduled compliance exports
-* background data transformation
-
-Lambdas are triggered by:
-
-* S3 events
-* scheduled rules
-* internal asynchronous events
-
-This approach avoids long-running infrastructure for workloads that are naturally ephemeral.
-
----
-
-## Why not merge API Gateway, Auth, and User services?
-
-In a smaller system, merging these services could be acceptable.
-
-They are separated here to demonstrate clear responsibility boundaries:
-
-* Auth is security-critical and stateless
-* User data is business-critical and stateful
-* Gateway is purely infrastructural
-
-This separation improves clarity, scalability, and long-term maintainability without introducing unnecessary complexity.
-
----
-
-## What this project demonstrates
-
-* pragmatic microservice architecture
-* multiple databases with clear ownership
-* deep relational data modeling
-* event-driven system design
-* selective use of gRPC
-* interoperability between Go and Node.js
-* cloud-native patterns using AWS Lambda and S3
-
-FleetOps is intentionally scoped to remain understandable while still reflecting real-world backend system design.
-
----
-
-## Architecture diagram
-
-```mermaid
-graph TD
-    Client[Web / Mobile Client]
-
-    Client -->|REST| APIGW[API Gateway]
-
-    APIGW --> Auth[Auth Service]
-    APIGW --> UserSvc[User & Organization Service]
-    APIGW --> TaskSvc[Task & Workflow Service]
-    APIGW --> AnalyticsSvc[Analytics Service]
-
-    Auth --> Firebase[Firebase Auth]
-
-    TaskSvc --> MySQL[(MySQL)]
-    UserSvc --> Postgres[(PostgreSQL)]
-    AnalyticsSvc --> AnalyticsDB[(PostgreSQL - Analytics)]
-
-    TaskSvc -->|Events| Kafka[(Kafka)]
-    UserSvc -->|Events| Kafka
-
-    Kafka --> AnalyticsSvc
-    Kafka --> TelemetrySvc[Telemetry Integration Service]
-
-    TelemetrySvc -->|Enrichment Events| Kafka
-
-    TaskSvc --> RabbitMQ[(RabbitMQ)]
-    RabbitMQ --> NotificationSvc[Notification Service]
-
-    APIGW -->|Presigned URL| S3[(Amazon S3)]
-    S3 --> Lambda[AWS Lambda]
-    Lambda --> AnalyticsSvc
-```
+- **Kafka**: Critical task lifecycle events, analytics pipelines, and cross-service enrichment.
+- **RabbitMQ**: Non-critical notifications (push/email), retries, and delayed background jobs.
 
 ---
 
 ## Database schemas
 
-Below are simplified but realistic schemas that reflect service ownership and data boundaries.
-
----
-
-### User & Organization Service (PostgreSQL + Prisma)
+### User & Organization Service (PostgreSQL)
 
 **organizations**
-
-* id (uuid, pk)
-* name (varchar)
-* created_at (timestamp)
-* status (active | suspended)
+- id (uuid, pk)
+- name (varchar)
+- status (active | suspended)
+- created_at (timestamp)
 
 **users**
-
-* id (uuid, pk)
-* email (varchar, unique)
-* display_name (varchar)
-* created_at (timestamp)
-
-**organization_members**
-
-* id (uuid, pk)
-* organization_id (fk -> organizations.id)
-* user_id (fk -> users.id)
-* role (ADMIN | USER)
-* created_at (timestamp)
+- id (uuid, pk)
+- firebase_uid (varchar, unique)
+- email (varchar, unique)
+- organization_id (fk -> organizations.id)
+- role (OWNER | ADMIN | USER)
+- display_name (varchar)
+- created_at (timestamp)
 
 **teams**
-
-* id (uuid, pk)
-* organization_id (fk)
-* name (varchar)
+- id (uuid, pk)
+- organization_id (fk -> organizations.id)
+- name (varchar)
 
 **team_members**
+- team_id (fk -> teams.id)
+- user_id (fk -> users.id)
 
-* team_id (fk -> teams.id)
-* user_id (fk -> users.id)
-
-**organization_stats (denormalized)**
-
-* organization_id (pk)
-* total_users (int)
-* total_tasks (int)
-* active_tasks (int)
-* updated_at (timestamp)
-
-Indexes:
-
-* organization_members (organization_id, role)
-* team_members (user_id)
-
----
-
-### Task & Workflow Service (MySQL + TypeORM)
+### Task & Workflow Service (MySQL)
 
 **tasks**
+- id (char(36), pk)
+- organization_id (char(36), index)
+- assigned_team_id (char(36), nullable)
+- assigned_user_id (char(36), nullable)
+- status (CREATED | IN_PROGRESS | COMPLETED | CANCELLED)
+- priority (LOW | MEDIUM | HIGH)
+- due_date (datetime)
 
-* id (char(36), pk)
-* organization_id (char(36))
-* assigned_team_id (char(36), nullable)
-* assigned_user_id (char(36), nullable)
-* status (CREATED | IN_PROGRESS | COMPLETED | CANCELLED)
-* priority (LOW | MEDIUM | HIGH)
-* due_date (datetime)
-* created_at (datetime)
+**task_events** (audit log)
+- id (bigint, pk)
+- task_id (char(36))
+- event_type (STATUS_CHANGED | COMMENT | ATTACHMENT_ADDED)
+- payload (json)
 
-**task_templates**
+### Notification Service (PostgreSQL)
 
-* id (char(36), pk)
-* organization_id (char(36))
-* name (varchar)
-* default_priority
+**user_notification_settings**
+- user_id (uuid, pk)
+- email_enabled (boolean)
+- push_enabled (boolean)
+- marketing_emails (boolean)
 
-**task_events (append-only)**
-
-* id (bigint, pk)
-* task_id (char(36))
-* event_type (STATUS_CHANGED | COMMENT | ATTACHMENT_ADDED)
-* payload (json)
-* created_at (datetime)
-
-Indexes:
-
-* tasks (organization_id, status)
-* task_events (task_id, created_at)
-
----
-
-### Analytics Service (PostgreSQL)
-
-**task_daily_stats (partitioned by date)**
-
-* date (date)
-* organization_id (uuid)
-* completed_tasks (int)
-* overdue_tasks (int)
-* avg_completion_time (int)
-
-**user_activity_stats**
-
-* user_id (uuid)
-* date (date)
-* tasks_completed (int)
-* tasks_updated (int)
-
-Materialized views:
-
-* organization_performance_view
+**notification_logs** (In-app Inbox)
+- id (uuid, pk)
+- user_id (uuid, index)
+- title (varchar)
+- body (text)
+- read_at (timestamp, nullable)
+- created_at (timestamp)
 
 ---
 
-### Object storage (Amazon S3)
+## Architecture diagram
 
-**Buckets structure:**
 
-* fleetops-attachments/{organizationId}/{taskId}/{fileId}
-* fleetops-reports/{organizationId}/{reportId}.pdf
 
-Metadata stored in Task Service (attachment references only).
+```mermaid
+graph TD
+    Client[Web / Mobile Client] -->|REST| APIGW[API Gateway]
 
----
+    subgraph "Identity & Access"
+        APIGW -->|gRPC| UserSvc[User & Org Service]
+        UserSvc --> Firebase[Firebase Auth]
+        UserSvc --> Postgres[(PostgreSQL)]
+    end
 
-### Event contracts (simplified)
+    subgraph "Business Logic"
+        APIGW --> TaskSvc[Task Service]
+        TaskSvc --> MySQL[(MySQL)]
+        TaskSvc -->|Events| Kafka[(Kafka)]
+        TaskSvc -->|Commands| RabbitMQ[(RabbitMQ)]
+    end
 
-TaskCreatedEvent
+    subgraph "Processing & Insights"
+        Kafka --> AnalyticsSvc[Analytics Service]
+        AnalyticsSvc --> AnalyticsDB[(PostgreSQL)]
+        Kafka --> TelemetrySvc[Telemetry Service - Go]
+        
+        RabbitMQ --> NotificationSvc[Notification Service]
+        NotificationSvc --> NotificationDB[(PostgreSQL)]
+        NotificationSvc --> FCM[Firebase Cloud Messaging]
+        NotificationSvc --> SES[Amazon SES]
+    end
 
-* taskId
-* organizationId
-* createdAt
-
-TaskStatusChangedEvent
-
-* taskId
-* oldStatus
-* newStatus
-* changedAt
-
-These events are published to Kafka and consumed by Analytics and Notification services.
+    APIGW -->|Presigned URL| S3[(Amazon S3)]
+    S3 --> Lambda[AWS Lambda]

@@ -6,7 +6,7 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "webpack": true,
-    "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
+    "tsConfigPath": "apps/api-gateway/tsconfig.json"
   },
   "projects": {
     "analytics-service": {
@@ -15,7 +15,7 @@
       "entryFile": "main",
       "sourceRoot": "apps/analytics-service/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/analytics-service/tsconfig.app.json"
+        "tsConfigPath": "apps/analytics-service/tsconfig.json"
       }
     },
     "api-gateway": {
@@ -24,16 +24,7 @@
       "entryFile": "main",
       "sourceRoot": "apps/api-gateway/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
-      }
-    },
-    "auth-service": {
-      "type": "application",
-      "root": "apps/auth-service",
-      "entryFile": "main",
-      "sourceRoot": "apps/auth-service/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/auth-service/tsconfig.app.json"
+        "tsConfigPath": "apps/api-gateway/tsconfig.json"
       }
     },
     "contracts": {
@@ -42,7 +33,7 @@
       "entryFile": "index",
       "sourceRoot": "libs/contracts/src",
       "compilerOptions": {
-        "tsConfigPath": "libs/contracts/tsconfig.lib.json"
+        "tsConfigPath": "libs/contracts/tsconfig.json"
       }
     },
     "grpc-proto": {
@@ -51,7 +42,16 @@
       "entryFile": "index",
       "sourceRoot": "libs/grpc-proto/src",
       "compilerOptions": {
-        "tsConfigPath": "libs/grpc-proto/tsconfig.lib.json"
+        "tsConfigPath": "libs/grpc-proto/tsconfig.json"
+      }
+    },
+    "notification-service": {
+      "type": "application",
+      "root": "apps/notification-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/notification-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/notification-service/tsconfig.json"
       }
     },
     "shared": {
@@ -60,7 +60,7 @@
       "entryFile": "index",
       "sourceRoot": "libs/shared/src",
       "compilerOptions": {
-        "tsConfigPath": "libs/shared/tsconfig.lib.json"
+        "tsConfigPath": "libs/shared/tsconfig.json"
       }
     },
     "task-service": {
@@ -69,7 +69,7 @@
       "entryFile": "main",
       "sourceRoot": "apps/task-service/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/task-service/tsconfig.app.json"
+        "tsConfigPath": "apps/task-service/tsconfig.json"
       }
     },
     "user-service": {
@@ -78,7 +78,7 @@
       "entryFile": "main",
       "sourceRoot": "apps/user-service/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/user-service/tsconfig.app.json"
+        "tsConfigPath": "apps/user-service/tsconfig.json"
       }
     }
   }
