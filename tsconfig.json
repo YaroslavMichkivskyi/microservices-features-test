@@ -21,12 +21,12 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "baseUrl": "./",
-//    "paths": {
-//      "@fleetops/grpc-proto": ["dist/libs/grpc-proto/index"],
-//      "@fleetops/grpc-proto/*": ["dist/libs/grpc-proto/*"],
-//      "@fleetops/shared": ["dist/libs/shared/index"],
-//      "@fleetops/shared/*": ["dist/libs/shared/*"]
-//    }
+    "paths": {
+      "@fleetops/grpc-proto": ["dist/libs/grpc-proto/index"],
+      "@fleetops/grpc-proto/*": ["dist/libs/grpc-proto/*"],
+      "@fleetops/shared": ["dist/libs/shared/index"],
+      "@fleetops/shared/*": ["dist/libs/shared/*"]
+    }
   },
   "exclude": [
     "node_modules",
