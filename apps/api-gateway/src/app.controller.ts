@@ -1,7 +1,7 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { FirebaseAuthGuard } from './common/guards/firebase-auth.guard';
 import { CurrentUser } from './common/decorators/current-user.decorator';
-import { UserContext } from './common/types/user-context.type';
+import { UserContext } from '@fleetops/shared';
 
 @Controller()
 export class AppController {

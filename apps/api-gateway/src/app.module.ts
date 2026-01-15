@@ -6,13 +6,10 @@ import { FirebaseModule } from './firebase/firebase.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
-    AuthModule,
+    ConfigModule.forRoot({ isGlobal: true }),
     FirebaseModule,
+    AuthModule,
   ],
   controllers: [AppController],
 })
-export class ApiGatewayModule {}
+export class AppModule {}

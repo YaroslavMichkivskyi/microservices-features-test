@@ -7,7 +7,7 @@ import {
 } from '@nestjs/swagger';
 import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { UserContext } from '../common/types/user-context.type';
+import { UserContext } from '@fleetops/shared';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -23,7 +23,11 @@ export class AuthController {
         userId: { type: 'string', example: 'usr_123abc' },
         email: { type: 'string', example: 'user@example.com' },
         organizationId: { type: 'string', example: 'org_456def' },
-        role: { type: 'string', enum: ['ADMIN', 'USER'], example: 'ADMIN' },
+        role: {
+          type: 'string',
+          enum: ['OWNER', 'ADMIN', 'USER'],
+          example: 'ADMIN',
+        },
       },
     },
   })
