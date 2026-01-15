@@ -27,8 +27,10 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@prisma/client": "^7.2.0",
     "passport-custom": "^1.1.1",
     "passport-firebase-jwt": "^1.2.1",
+    "prisma": "^7.2.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

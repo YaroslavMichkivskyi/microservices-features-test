@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package fleetops.identity.v1;
+
+import "google/protobuf/empty.proto";
+
+service IdentityService {
+  rpc GetUserContext (GetUserContextRequest) returns (UserContextResponse);
+
+  rpc CreateOrganization (CreateOrganizationRequest) returns (OrganizationResponse);
+  rpc UpdateOrganization (UpdateOrganizationRequest) returns (OrganizationResponse);
+
+  rpc ProvisionUser (ProvisionUserRequest) returns (UserResponse);
+  rpc UpdateUserRole (UpdateUserRoleRequest) returns (UserResponse);
+  rpc RemoveUser (RemoveUserRequest) returns (google.protobuf.Empty);
+
+  rpc CreateTeam (CreateTeamRequest) returns (TeamResponse);
+  rpc AddTeamMember (TeamMemberRequest) returns (google.protobuf.Empty);
+  rpc RemoveTeamMember (TeamMemberRequest) returns (google.protobuf.Empty);
+}
+
+message GetUserContextRequest {
+  string firebase_uid = 1;
+}
+
+message UserContextResponse {
+  string user_id = 1;
+  string organization_id = 2;
+  string role = 3; // OWNER, ADMIN, USER
+  string email = 4;
+}
+
+message CreateOrganizationRequest {
+  string name = 1;
+  string owner_email = 2;
+  string owner_firebase_uid = 3;
+}
+
+message UpdateOrganizationRequest {
+  string organization_id = 1;
+  string name = 2;
+  string status = 3; // active, suspended
+}
+
+message OrganizationResponse {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+}
+
+message ProvisionUserRequest {
+  string organization_id = 1;
+  string email = 2;
+  string firebase_uid = 3;
+  string display_name = 4;
+  string role = 5;
+}
+
+message UpdateUserRoleRequest {
+  string user_id = 1;
+  string new_role = 2;
+}
+
+message UserResponse {
+  string id = 1;
+  string email = 2;
+  string role = 3;
+}
+
+message RemoveUserRequest {
+  string user_id = 1;
+}
+
+message CreateTeamRequest {
+  string organization_id = 1;
+  string name = 2;
+}
+
+message TeamResponse {
+  string id = 1;
+  string name = 2;
+}
+
+message TeamMemberRequest {
+  string team_id = 1;
+  string user_id = 2;
+}

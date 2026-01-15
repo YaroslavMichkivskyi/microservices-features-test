@@ -1,6 +1,8 @@
+import { Role } from '../enums';
+
 export interface UserContext {
   userId: string;
-  email?: string;
+  email: string;
   organizationId: string;
-  role: 'ADMIN' | 'USER';
+  role: Role;
 }
